@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 from dash.dependencies import Input, Output
 df = pd.read_csv('cleaned_dataset.csv')
+
 df['submission_date'] = pd.to_datetime(df['submission_date'])
+
 df = df.set_index('submission_date').groupby('state').resample('M').sum()
 df = df.reset_index()
 #All non continental states are excluded
@@ -265,9 +267,19 @@ html.Div(children=[
     ),
 ], className='column', style={'width': '80%', 'display': 'inline-block', 'vertical-align': 'top', 'margin-top': ' 0'}),
 html.Div(children=[
+html.Div(
+    html.P(id='cytoscape-tapEdgeData-output'), 
+    style={'display': 'inline-block', 'width': '100%'}
+),
+html.Div(
+    html.P(id='cytoscape-tapNodeData-output'), 
+    style={'display': 'inline-block', 'width': '100%'}
+),
 #dcc.RadioItems(id='timeframe_selector', options = ['Total', 'Weekly','Monthly', 'Yearly'], value = 'Monthly'),
 html.P('Choose Timeframe:'),
-dcc.Dropdown(['Total', 'Weekly','Monthly', 'Quarter-Yearly'], 'Monthly', id='timeframe_selector'),
+html.Div(
+dcc.Dropdown(['Total', 'Weekly','Monthly', 'Quarter-Yearly'], 'Monthly', id='timeframe_selector'), style={'display': 'inline-block', 'width': '90%'}
+),
 html.Br(),
 html.P('Choose Weight Range:'),
 #dcc.RangeSlider(min=-1, max=1, step=.1, value=[-1, 1], id='cor-range-slider'),
@@ -290,6 +302,8 @@ dbc.FormText("Maximum Weight"),
 html.Br(),
 html.P('Correlation Strength'),
 html.Img(src= '/assets/cytolegend.png'),
+html.P('New Case Change'),
+html.Img(src= '/assets/cytolegend2.png'),
 html.Div([
     dbc.Button('Play', id='play-button', className="me-1", disabled=True),
     dbc.Button('Pause', id='pause-button', className="me-1"),
@@ -300,16 +314,6 @@ html.Div(
 dbc.Input(id='speed-slider', type='number', max = 2.75 , min = .25, step=.25, value=1),
 dbc.FormText("Adjust Speed"),
     ], style={'width': '40%', 'margin-top': '5px'}
-),
-html.Br(),
-
-html.Div(
-        html.P(id='cytoscape-tapEdgeData-output'), 
-        style={'display': 'inline-block', 'width': '100%'}
-    ),
-html.Div(
-    html.P(id='cytoscape-tapNodeData-output'), 
-    style={'display': 'inline-block', 'width': '100%'}
 ),
 ], className='column', style={'width': '20%', 'display': 'inline-block', 'vertical-align': 'top','margin-top': '0'}),
 html.Div(
@@ -331,7 +335,7 @@ html.Div(
         ),
     )           
     ], className='row' ), 
-], className='row'),
+], className='row'), style={"overflow-x": "hidden"}
 )
 #each time iterated by interval will advance the date slider
 @app.callback( Output('my-range-slider', 'value'),
@@ -358,7 +362,7 @@ def render_frame(i, value1, value2):
     if(len(dfp_map) > 48):
         for num, row in (enumerate(dfp_map[(i*48):((i*48)+48)])):
     #skips the starting which is just a label
-            print(row)
+            #print(row)
             for k, v in list(enumerate(row[2:])):
                 #print(k, v)
                 if dfp.columns.values[k+1] != row.Index[1] and dfp.columns.values[k+1] in state_dictionary[row.Index[1]]:
@@ -369,7 +373,7 @@ def render_frame(i, value1, value2):
     else:
         for row in dfp.itertuples():
     #skips the starting which is just a label
-            print(row)
+            #print(row)
             for k, v in list(enumerate(row[2:])):
                 #print(k, v)
                 if dfp.columns.values[k+1] != row.Index and dfp.columns.values[k+1] in state_dictionary[row.Index]:
@@ -382,7 +386,7 @@ def render_frame(i, value1, value2):
         for num, row in (enumerate(df_values[(i*48):((i*48)+48)])):
         #skips the starting which is just a label
             node_data.append(row[3])
-            print(row)
+            #print(row)
     else :
         for i in range(48):
         #skips the starting which is just a label
@@ -547,7 +551,12 @@ def buttonClick(button1, button2, button3, speed):
               Input('cytoscape-event-callbacks-2', 'tapEdgeData'))
 def displayTapEdgeData(data):
     if data:
-        return "The correlation between  " + \
+        if(len(dfp_map) > 48):
+             return "The correlation between  " + \
+               data['source'] + " and " + data['target'] + " has a weight of " + str(round(data['weight'], 3)) + \
+                   " on " + str((dfp_map[(date_int*48)].Index[0]).date())
+        else:
+            return "The correlation between  " + \
                data['source'] + " and " + data['target'] + " has a weight of " + str(round(data['weight'], 3)) + " for all time "
 @app.callback(Output('cytoscape-tapNodeData-output', 'children'),
               Input('cytoscape-event-callbacks-2', 'tapNodeData'))
@@ -555,9 +564,9 @@ def displayTapNodeData(data):
     if data:
         if (len(dfp_map) > 48):
             return data['label'] + " has a new case percentage of  " + \
-                str(data['case']) + " on " + str((dfp_map[(date_int*48)].Index[0]).date())
+                str(data['case']) + "% on " + str((dfp_map[(date_int*48)].Index[0]).date())
         else:
-            print(dfp_map[(0)].Index[0])
+            #print(dfp_map[(0)].Index[0])
             return data['label'] + " has a new case percentage of  None for all time"
 if __name__ == '__main__':
     app.run_server(debug=True)
